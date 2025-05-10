@@ -1,6 +1,6 @@
 
 # Ignorar carpetas de base de datos
-postgres/
+postgresSQL/
 *.sql
 *.db
 *.sqlite3
