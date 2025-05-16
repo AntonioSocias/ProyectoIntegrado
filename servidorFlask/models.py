@@ -37,6 +37,7 @@ class Empleado(db.Model):
     puesto = db.Column(db.String(50))
     email = db.Column(db.String(100))
     horario_id = db.Column(db.Integer, db.ForeignKey('horario.horario_id'))
+    password = db.Column(db.String(128))
 
 class Cliente(db.Model):
     cliente_id = db.Column(db.Integer, primary_key=True)

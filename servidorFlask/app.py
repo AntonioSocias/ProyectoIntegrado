@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
+from werkzeug.security import check_password_hash
 from models import (
-    db, ma,  # importar instancias ya inicializadas
+    db, ma,
     Propietario, PropietarioSchema,
     Apartamento, ApartamentoSchema,
     Horario, HorarioSchema,
@@ -15,19 +16,19 @@ from models import (
 import config
 
 app = Flask(__name__)
+app.secret_key = 'clave-muy-secreta'  # Reemplázala en producción
 app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = config.SQLALCHEMY_TRACK_MODIFICATIONS
 
-# Aquí sí se inicializan las extensiones con la app
+# Inicialización de extensiones
 db.init_app(app)
 ma.init_app(app)
-ma.init_app(app)
 
+# Permitir CORS para desarrollo
 CORS(app)
 
 # Función reutilizable para registrar endpoints CRUD
 def register_endpoints(model, schema, schema_many, route_name):
-    # GET all
     app.add_url_rule(
         f'/{route_name}',
         endpoint=f'{route_name}_get_all',
@@ -35,7 +36,6 @@ def register_endpoints(model, schema, schema_many, route_name):
         methods=['GET']
     )
 
-    # GET by ID
     app.add_url_rule(
         f'/{route_name}/<int:id>',
         endpoint=f'{route_name}_get_one',
@@ -43,7 +43,6 @@ def register_endpoints(model, schema, schema_many, route_name):
         methods=['GET']
     )
 
-    # POST
     def add():
         data = request.json
         item = model(**data)
@@ -58,7 +57,6 @@ def register_endpoints(model, schema, schema_many, route_name):
         methods=['POST']
     )
 
-    # PUT
     def update(id):
         item = model.query.get_or_404(id)
         for key, value in request.json.items():
@@ -73,7 +71,6 @@ def register_endpoints(model, schema, schema_many, route_name):
         methods=['PUT']
     )
 
-    # DELETE
     def delete(id):
         item = model.query.get_or_404(id)
         db.session.delete(item)
@@ -97,6 +94,23 @@ register_endpoints(Reserva, ReservaSchema(), ReservaSchema(many=True), 'reservas
 register_endpoints(Pulsera, PulseraSchema(), PulseraSchema(many=True), 'pulseras')
 register_endpoints(Acceso, AccesoSchema(), AccesoSchema(many=True), 'accesos')
 register_endpoints(EventoFichaje, EventoFichajeSchema(), EventoFichajeSchema(many=True), 'eventos_fichaje')
+
+# Endpoint personalizado para login
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    dni = data.get('dni')
+    password = data.get('password')
+
+    empleado = Empleado.query.filter_by(dni=dni).first()
+    if not empleado:
+        return jsonify({'error': 'DNI no encontrado'}), 404
+
+    if not check_password_hash(empleado.password, password):
+        return jsonify({'error': 'Contraseña incorrecta'}), 401
+
+    session['empleado_id'] = empleado.empleado_id
+    return jsonify({'message': 'Login correcto'})
 
 if __name__ == '__main__':
     app.run(debug=True)
